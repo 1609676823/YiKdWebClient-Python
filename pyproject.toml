@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yikd-web-client"
+version = "1.0.0.32"
+description = "金蝶云星空 WebAPI Python 客户端，移植自 YiKdWebClient C# 1.0.0.32"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "zoujiawei" }]
+keywords = ["kingdee", "k3cloud", "webapi", "金蝶云星空"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = [
+  "pycryptodome>=3.20,<4",
+  "requests>=2.31,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2,<2",
+  "ruff>=0.9,<1",
+]
+
+[project.urls]
+Homepage = "https://gitee.com/lnsyzjw/yi-kd-web-client-python"
+Repository = "https://github.com/1609676823/YiKdWebClient-Python"
+"C# Source" = "https://gitee.com/lnsyzjw/yi-kd-web-client"
+"Java Port" = "https://gitee.com/lnsyzjw/yi-kd-web-client-java"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+yikd_web_client = ["py.typed"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/YiKdWebClient/__init__.py" = ["F403"]

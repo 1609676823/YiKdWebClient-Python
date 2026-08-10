@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+  <appSettings>
+    <add key="X-KDApi-AcctID" value="your-account-id" />
+    <add key="X-KDApi-AppID" value="your-app-id" />
+    <add key="X-KDApi-AppSec" value="your-app-secret" />
+    <add key="X-KDApi-UserName" value="your-user-name" />
+    <add key="X-KDApi-LCID" value="2052" />
+    <add key="X-KDApi-ServerUrl" value="https://example.test/k3cloud/" />
+    <add key="X-KDApi-OrgNum" value="" />
+  </appSettings>
+</configuration>
+
