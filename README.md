@@ -30,7 +30,7 @@ YiKdWebClient-Python 是 C# `YiKdWebClient` `1.0.0.32` 的 Python 移植版，�
 > 仓库只提供占位配置 `YiKdWebCfg/appsettings.example.xml`。请勿把真实账套 ID、应用密钥、用户密码、Cookie、SessionId、`.cnf` 集成密钥或其他长期有效凭据提交到 Git。
 
 > [!IMPORTANT]
-> 旧版用户名密码认证示例只从 `YIKD_VALIDATE_PASSWORD` 环境变量读取密码。打印 `ReturnLoginWebModel`、`ReturnOperationWebModel` 或 `RequestHeadersString` 前仍应主动脱敏，因为其中可能包含应用标识、签名、Cookie 或业务数据。
+> 旧版用户名密码认证示例只从 `YIKD_VALIDATE_PASSWORD` 环境变量读取密码。README 示例运行器会在输出层脱敏，截图脚本还会再次替换密码、应用密钥和临时目录；自己打印 `ReturnLoginWebModel`、`ReturnOperationWebModel` 或 `RequestHeadersString` 时仍应主动脱敏。
 
 > [!NOTE]
 > 部分代码、测试、文档、示例或其他项目内容，可能在维护者指导和审查下借助 AI 工具生成、补全、重构或校对。使用者仍应结合自己的金蝶版本、补丁、权限和业务数据完成集成验证。
@@ -51,7 +51,8 @@ YiKdWebClient-Python 是 C# `YiKdWebClient` `1.0.0.32` 的 Python 移植版，�
 - [12. C#、Java 与 Python 使用差异](#12-cjava-与-python-使用差异)
 - [13. 常见问题](#13-常见问题)
 - [14. 开发、测试与发布构建](#14-开发测试与发布构建)
-- [15. Git 双远程与项目地址](#15-git-双远程与项目地址)
+- [15. 重新生成 README 截图](#15-重新生成-readme-截图)
+- [16. Git 双远程与项目地址](#16-git-双远程与项目地址)
 
 ## 1. 相关资料
 
@@ -115,6 +116,8 @@ python -m pip install .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl
 ```
 
 如果版本号已更新，请以 `dist` 中的实际文件名为准。
+
+![Python 可编辑安装与发行包构建结果](docs/screenshots/00-pip-install.png)
 
 ### 3.3 发行包名与导入名
 
@@ -225,6 +228,8 @@ client = YiK3CloudClient()
 
 必须先设置 `XmlConfigHelper.AppConfigPath`，再创建会读取默认配置的 `YiK3CloudClient` 或 `AppSettingsModel`。
 
+![Python 自定义配置路径的实际请求与回环响应](docs/screenshots/08-custom-config-path.png)
+
 ### 4.5 动态传入授权信息
 
 配置来自环境变量、数据库、配置中心，或同一进程需要连接多个账套时，可以直接设置模型属性：
@@ -249,6 +254,8 @@ client.LoginType = LoginType.LoginBySignSHA256
 ```
 
 同一属性也有 `account_id`、`username`、`app_id`、`app_secret`、`language_id`、`organization_number` 和 `server_url` 等 Python 风格别名。
+
+![Python 动态传入授权信息的实际请求与回环响应](docs/screenshots/07-dynamic-config.png)
 
 ## 5. 五分钟运行第一个示例
 
@@ -289,6 +296,54 @@ with YiK3CloudClient() as client:
 
 HTTP 请求完成不代表业务一定成功。还要检查登录响应中的 `LoginResultType`，以及业务响应中的 `IsSuccessByAPI`、`ResponseStatus.IsSuccess`、`ErrorCode` 和 `Message`。输出真实请求前必须脱敏。
 
+### 5.1 README 示例运行器
+
+`examples/readme_runner.py` 把 README 中需要截图的场景整理成 13 个独立命令。它既可以连接自己的测试环境运行，也供截图生成脚本在本地回环环境中调用：
+
+```powershell
+python .\examples\readme_runner.py help
+python .\examples\readme_runner.py sign-sha256
+```
+
+| 命令 | 场景 |
+| --- | --- |
+| `sign-sha256` | 签名信息认证（SHA256） |
+| `sign-sha1` | 签名信息认证（SHA1） |
+| `app-secret` | 第三方系统登录授权 |
+| `validate-login` | 旧版用户名密码认证 |
+| `simple-passport` | 集成密钥文件认证 |
+| `api-sign-headers` | API 请求头签名认证 |
+| `dynamic-config` | 代码动态配置授权信息 |
+| `custom-config-path` | 自定义配置文件路径 |
+| `custom-webapi` | 调用自定义 WebAPI |
+| `sso-v4` | 单点登录 V4 |
+| `upload-file` | 文件路径分块上传 |
+| `upload-progress` | 文件分块上传及进度回调 |
+| `upload-base64` | Base64 流分块上传 |
+
+运行器默认读取本仓库配置；也可以用 `YIKD_CONFIG_PATH`、`YIKD_CNF_PATH`、`YIKD_SERVER_URL`、`YIKD_UPLOAD_FILE` 和其他 `YIKD_*` 环境变量覆盖。`validate-login` 必须显式设置 `YIKD_VALIDATE_PASSWORD`。
+
+### 5.2 截图说明
+
+本 README 的 14 张 Python 截图由上述运行器实际执行后生成。为避免依赖作者账套或泄露凭据，生成脚本会启动仅监听 `127.0.0.1` 的临时 HTTP 服务，并使用 `MOCK-*` 占位配置：
+
+- 登录、业务调用、API 请求头签名、自定义 WebAPI 和附件分块都会真实经过 Python HTTP 传输层；
+- SSO V4 按真实 Python 算法在本地生成签名参数和入口 URL，本来就不发送 HTTP 请求；
+- 密码和应用密钥在运行器输出与截图脚本两层替换为 `******`；
+- 截图模式只折叠超长字段和部分中间行，直接运行同一命令可查看完整报文；
+- 临时配置、`.cnf`、上传文件、HTTP 服务和渲染 HTML 会在脚本退出时清理。
+
+截图里的内容与客户端属性对应如下：
+
+| 截图内容 | Python 属性或变量 |
+| --- | --- |
+| 登录地址、请求、响应 | `ReturnLoginWebModel.RequestUrl`、`RealRequestBody`、`RealResponseBody` |
+| 业务地址、请求、响应 | `ReturnOperationWebModel.RequestUrl`、`RealRequestBody`、`RealResponseBody` |
+| API 签名请求头 | `RequestHeadersString`、`RequestHeaders` |
+| 方法返回值 | `View`、`CustomBusinessServiceByParameters` 或附件工具的返回字符串 |
+| SSO 参数与入口 | `SSOHelper.argJosn`、`argJsonBase64`、`SSOLoginUrlObject` |
+| 上传进度 | 回调参数 `FileChunk` 与当前 `YiK3CloudClient` |
+
 ## 6. 登录验证方式与完整示例
 
 ### 6.1 认证模式总览
@@ -322,6 +377,8 @@ print(result_json)
 
 签名使用账套 ID、集成用户、应用 ID、应用密钥、时间戳及可选组织编码。签名失败时，除核对配置外，还要确认客户端与服务器时间没有明显偏差。
 
+![SHA256 签名认证的 Python 实际请求与回环响应](docs/screenshots/01-sign-sha256.png)
+
 ### 6.3 SHA1 签名信息认证（旧版本兼容）
 
 配置和调用方式与 SHA256 相同，只替换枚举：
@@ -331,6 +388,8 @@ client.LoginType = LoginType.LoginBySignSHA1
 ```
 
 除非目标补丁明确要求 SHA1，新接入优先使用 SHA256。
+
+![SHA1 签名认证的 Python 实际请求与回环响应](docs/screenshots/02-sign-sha1.png)
 
 ### 6.4 第三方系统登录授权
 
@@ -342,6 +401,8 @@ result_json = client.View("SEC_User", '{"Number":"Administrator"}')
 ```
 
 `YiK3CloudClient` 的初始 `LoginType` 是 `LoginByAppSecret`，但示例和生产代码仍建议显式赋值，便于审查实际使用的认证模式。
+
+![第三方系统登录授权的 Python 实际请求与回环响应](docs/screenshots/03-app-secret.png)
 
 ### 6.5 API 请求头签名认证
 
@@ -370,6 +431,8 @@ print(result_json)
 ```
 
 生产使用前应确认目标金蝶版本、网关和授权页面仍支持对应算法及请求头格式。
+
+![API 请求头签名认证的 Python 请求头与回环响应](docs/screenshots/06-api-sign-headers.png)
 
 ### 6.6 旧版用户名密码认证
 
@@ -405,6 +468,8 @@ $env:YIKD_VALIDATE_PASSWORD = '<替换为测试环境密码>'
 python .\your_validate_login_example.py
 Remove-Item Env:\YIKD_VALIDATE_PASSWORD
 ```
+
+![旧版用户名密码认证的 Python 实际请求与回环响应，密码已脱敏](docs/screenshots/04-validate-login.png)
 
 ### 6.7 集成密钥认证（文件或 Base64）
 
@@ -443,6 +508,8 @@ client.LoginBySimplePassportModel = LoginBySimplePassportModel(
 ```
 
 文件和 Base64 是同一个 `LoginBySimplePassport` 的两种密钥来源，不额外计为两个 `LoginType`。
+
+![集成密钥认证的 Python 实际请求与回环响应](docs/screenshots/05-simple-passport.png)
 
 ### 6.8 已弃用的 ValidateUserEnDeCode
 
@@ -598,6 +665,8 @@ print(logout_response)
 
 V3、V2/V1 分别使用 `GetSSOLogoutap0StrV3` 和 `GetSSOLogoutap0StrV2V1`。SSO URL 和签名参数属于敏感登录材料，不应写入公开日志。
 
+![SSO V4 的 Python 本地签名参数与入口](docs/screenshots/10-sso-v4.png)
+
 ## 9. 自定义 WebAPI
 
 官方自定义 WebAPI 报文格式与参数说明：<https://vip.kingdee.com/article/97030089581136896?specialId=448928749460099072&productLineId=1&isKnowledge=2&lang=zh-CN>
@@ -627,6 +696,8 @@ raw_result_json = client.CustomBusinessServiceByParameters(
 ```
 
 也可以直接传服务路径字符串；缺少 `.common.kdsvc` 后缀时客户端会自动补齐。命名空间、类名、公开方法名和程序集命名必须与服务器端部署内容完全一致。
+
+![自定义 WebAPI 的 Python 实际请求与回环响应](docs/screenshots/09-custom-webapi.png)
 
 ## 10. 文件分块上传
 
@@ -675,6 +746,10 @@ print("服务端文件 ID：", upload.data.FileId)
 
 不需要进度时可省略 `progressaction`。每个成功分块返回的 `FileId` 会写回 `upload.data.FileId`，供后续分块继续使用。
 
+![文件路径分块上传的 Python 实际请求与回环响应](docs/screenshots/11-upload-file.png)
+
+![带进度回调的 Python 文件分块上传](docs/screenshots/12-upload-progress.png)
+
 ### 10.2 Base64 分块上传
 
 已经持有 Base64 文件内容时，不必先还原成临时文件：
@@ -691,6 +766,8 @@ result_json = AttachmentHelper.AttachmentUploadByBase64(
 ```
 
 默认分块大小是 1 MiB。实际可用大小还应服从目标金蝶版本、反向代理和附件存储限制。
+
+![Base64 分块上传的 Python 实际请求与回环响应](docs/screenshots/13-upload-base64.png)
 
 ## 11. HTTP 工具与异步边界
 
@@ -869,7 +946,34 @@ Windows 也可以一次执行完整发布前检查：
 
 修改公开方法、参数顺序、认证报文或服务路径时，请同步更新测试和 [docs/API_MAPPING.md](docs/API_MAPPING.md)。更多约定见 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [CHANGELOG.md](CHANGELOG.md)。
 
-## 15. Git 双远程与项目地址
+## 15. 重新生成 README 截图
+
+截图统一存放在 `docs/screenshots`，生成脚本为 `docs/generate-readme-screenshots.ps1`。脚本会：
+
+1. 运行 `build-release.bat`，执行 Ruff、单元测试、wheel/sdist 构建和 Twine 检查；
+2. 生成 `00-pip-install.png`；
+3. 在随机本地端口启动只监听 `127.0.0.1` 的临时回环 HTTP 服务；
+4. 创建临时占位 XML、`.cnf` 和上传文件；
+5. 依次真实运行 13 个 Python 示例，并使用 Microsoft Edge 无头模式生成 PNG；
+6. 恢复进程环境变量，停止回环服务并删除全部临时文件。
+
+完整重新构建并截图：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\docs\generate-readme-screenshots.ps1
+```
+
+已经完成发布构建，只想重新运行示例和渲染图片时：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\docs\generate-readme-screenshots.ps1 -SkipBuild
+```
+
+截图脚本不需要真实金蝶地址、真实密码或真实密钥，也不会连接或写入业务系统。要验证目标环境，请按第 4 节准备自己的测试配置，再直接运行 `examples/readme_runner.py` 中的对应命令。
+
+## 16. Git 双远程与项目地址
 
 本地 `origin` 默认从 Gitee 拉取，普通 `git push` 会依次推送到 Gitee 与 GitHub：
 
