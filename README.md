@@ -30,7 +30,7 @@ YiKdWebClient-Python 是 C# `YiKdWebClient` `1.0.0.32` 的 Python 移植版，�
 > 仓库只提供占位配置 `YiKdWebCfg/appsettings.example.xml`。请勿把真实账套 ID、应用密钥、用户密码、Cookie、SessionId、`.cnf` 集成密钥或其他长期有效凭据提交到 Git。
 
 > [!IMPORTANT]
-> 旧版用户名密码认证示例只从 `YIKD_VALIDATE_PASSWORD` 环境变量读取密码。README 示例运行器会在输出层脱敏，截图脚本还会再次替换密码、应用密钥和临时目录；自己打印 `ReturnLoginWebModel`、`ReturnOperationWebModel` 或 `RequestHeadersString` 时仍应主动脱敏。
+> README 的独立旧版登录代码使用 `123456` 作为示例密码，便于看清用户名和密码应填写在哪里；仓库中的 `validate-login` 示例运行器仍只从 `YIKD_VALIDATE_PASSWORD` 环境变量读取真实密码。运行器会在输出层脱敏，截图脚本还会再次替换密码、应用密钥和临时目录。
 
 > [!NOTE]
 > 部分代码、测试、文档、示例或其他项目内容，可能在维护者指导和审查下借助 AI 工具生成、补全、重构或校对。使用者仍应结合自己的金蝶版本、补丁、权限和业务数据完成集成验证。
@@ -436,38 +436,79 @@ print(result_json)
 
 ### 6.6 旧版用户名密码认证
 
-不要把密码写入源码或 XML 示例。下面只从环境变量读取：
+该模式不依赖 `appsettings.xml` 中的应用 ID 和应用密钥，但需要服务地址、数据中心 ID、用户名、密码和语系。除兼容旧系统外，不建议新项目优先使用用户名密码方式。
 
 ```python
-import os
-
 from yikd_web_client import (
     LoginType,
     ValidateLoginSettingsModel,
     YiK3CloudClient,
 )
 
-client = YiK3CloudClient()
-client.LoginType = LoginType.ValidateLogin
-client.validateLoginSettingsModel = ValidateLoginSettingsModel(
-    "https://example.test/K3Cloud/",
-    DbId="account-id",
-    UserName="Administrator",
-    Password=os.environ["YIKD_VALIDATE_PASSWORD"],
-    lcid=2052,
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
 )
 
-result_json = client.View("SEC_User", '{"Number":"Administrator"}')
-print(result_json)
+server_url = "http://127.0.0.1/K3Cloud/"
+data_center_id = "6979b9812f3f89"
+user_name = "demo"
+password = "123456"  # 示例密码，请替换为目标环境用户的实际密码
+locale_id = 2052
+
+login = ValidateLoginSettingsModel(
+    server_url,
+    DbId=data_center_id,
+    UserName=user_name,
+    Password=password,
+    lcid=locale_id,
+)
+
+with YiK3CloudClient() as client:
+    client.LoginType = LoginType.ValidateLogin
+    client.validateLoginSettingsModel = login
+
+    result_json = client.View(form_id, json_data)
+
+    login_request_url = client.ReturnLoginWebModel.RequestUrl
+    login_request_body = client.ReturnLoginWebModel.RealRequestBody
+    login_response_body = client.ReturnLoginWebModel.RealResponseBody
+    operation_request_url = client.ReturnOperationWebModel.RequestUrl
+    operation_request_body = client.ReturnOperationWebModel.RealRequestBody
+    operation_response_body = client.ReturnOperationWebModel.RealResponseBody
+
+    # 登录请求体中含有密码，输出前替换为星号；真实请求不受影响。
+    masked_login_request_body = login_request_body.replace(password, "******")
+
+    print("服务地址（server_url）：", server_url)
+    print("数据中心 ID（data_center_id）：", data_center_id)
+    print("用户名（user_name）：", user_name)
+    print("密码（password）：******")
+    print("语系（locale_id）：", locale_id)
+    print("表单 ID（form_id）：", form_id)
+    print("业务 JSON 参数（json_data）：", json_data)
+    print("登录请求地址（login_request_url）：", login_request_url)
+    print("登录请求报文（masked_login_request_body）：", masked_login_request_body)
+    print("登录返回报文（login_response_body）：", login_response_body)
+    print("业务请求地址（operation_request_url）：", operation_request_url)
+    print("业务请求报文（operation_request_body）：", operation_request_body)
+    print("业务返回报文（operation_response_body）：", operation_response_body)
+    print("View 方法返回值（result_json）：", result_json)
 ```
 
-PowerShell 临时设置和清理环境变量：
+这段独立示例可以直接复制运行，不要求使用环境变量。`123456` 仅用于说明密码变量应填写在哪里，接入时必须替换成目标环境中 `user_name` 对应用户的真实密码；不要把真实测试密码提交到源码、README、截图或日志。
+
+仓库自带的示例运行器为了避免把真实密码写入版本控制，仍使用环境变量：
 
 ```powershell
-$env:YIKD_VALIDATE_PASSWORD = '<替换为测试环境密码>'
-python .\your_validate_login_example.py
+$env:YIKD_VALIDATE_PASSWORD = '<目标环境中 demo 用户的真实密码>'
+python .\examples\readme_runner.py validate-login
 Remove-Item Env:\YIKD_VALIDATE_PASSWORD
 ```
+
+截图中的旧版登录使用本地 `MOCK-*` 回环配置，用户名为 `demo`；密码在展示前已替换为 `******`，不会包含示例密码或真实测试密码。
 
 ![旧版用户名密码认证的 Python 实际请求与回环响应，密码已脱敏](docs/screenshots/04-validate-login.png)
 
