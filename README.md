@@ -109,7 +109,14 @@ Windows 可以直接运行仓库脚本。脚本会创建或复用 `.venv`，安�
 .\build-release.bat
 ```
 
-构建结果位于 `dist`。业务项目可安装生成的 wheel：
+构建结果位于 `dist`：
+
+| 文件 | 类型 | 适用场景 |
+| --- | --- | --- |
+| `yikd_web_client-1.0.0.32-py3-none-any.whl` | wheel 二进制发行包 | 推荐普通用户安装；无需先构建本项目 |
+| `yikd_web_client-1.0.0.32.tar.gz` | Python 源码发行包（sdist） | 用于源码审查、重新构建或 wheel 不适用时安装 |
+
+这两个文件都是标准 Python 发行包，可以直接复制给其他用户，也可以作为 GitHub Release Assets 发布。普通用户优先选择 wheel：
 
 ```powershell
 python -m pip install .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl
@@ -119,7 +126,75 @@ python -m pip install .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl
 
 ![Python 可编辑安装与发行包构建结果](docs/screenshots/00-pip-install.png)
 
-### 3.3 发行包名与导入名
+### 3.3 从 GitHub Releases 下载并安装
+
+项目发布页：[YiKdWebClient-Python Releases](https://github.com/1609676823/YiKdWebClient-Python/releases)。发布版本后，普通用户展开对应版本的 **Assets**，下载以下文件之一：
+
+- 推荐：`yikd_web_client-1.0.0.32-py3-none-any.whl`；
+- 备选：`yikd_web_client-1.0.0.32.tar.gz`；
+- 如果 Release 同时提供 `SHA256SUMS.txt`，一并下载并核对文件摘要。
+
+> [!IMPORTANT]
+> GitHub 根据标签自动显示的 **Source code (zip)** 和 **Source code (tar.gz)** 是仓库快照，不是 `python -m build` 生成的 Python sdist。维护者必须把 `dist/yikd_web_client-1.0.0.32.tar.gz` 作为独立 Release Asset 上传，用户安装时也应认准带项目名和版本号的文件。
+
+在下载目录中创建虚拟环境并安装 wheel：
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install .\yikd_web_client-1.0.0.32-py3-none-any.whl
+python -c "import yikd_web_client; print(yikd_web_client.__version__)"
+```
+
+Linux/macOS 使用：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install ./yikd_web_client-1.0.0.32-py3-none-any.whl
+python -c "import yikd_web_client; print(yikd_web_client.__version__)"
+```
+
+也可以安装下载的 Python 源码发行包。pip 会先在隔离环境中构建 wheel，因此在线安装时可能下载构建依赖，普通用户仍建议直接使用上面的 wheel：
+
+```powershell
+python -m pip install .\yikd_web_client-1.0.0.32.tar.gz
+```
+
+发布 `v1.0.0.32` 且 Asset 名称与上面一致后，也可以直接通过 Release Asset URL 安装：
+
+```powershell
+python -m pip install `
+  "https://github.com/1609676823/YiKdWebClient-Python/releases/download/v1.0.0.32/yikd_web_client-1.0.0.32-py3-none-any.whl"
+```
+
+wheel 和 sdist 都只包含客户端，不包含任何真实金蝶凭据。安装完成后，仍需按照[第 4 节](#4-配置-appsettingsxml)在业务程序的工作目录创建 `YiKdWebCfg/appsettings.xml`；旧版用户名密码、`.cnf` 集成密钥等敏感内容也必须由使用者在本地配置。
+
+默认安装会从 Python 包索引解析 `requests`、`pycryptodome` 及其间接依赖，因此“只有项目 wheel、目标机器完全离线”并不足以完成安装。离线分发时，维护者应针对目标操作系统、CPU 架构和 Python 版本额外制作 wheelhouse：
+
+```powershell
+New-Item -ItemType Directory -Force .\wheelhouse | Out-Null
+python -m pip download --only-binary=:all: `
+  --dest .\wheelhouse `
+  .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl
+Compress-Archive -Path .\wheelhouse\* `
+  -DestinationPath .\dist\yikd_web_client-1.0.0.32-wheelhouse-windows.zip `
+  -Force
+```
+
+离线用户解压后安装：
+
+```powershell
+python -m pip install --no-index `
+  --find-links .\wheelhouse `
+  yikd-web-client==1.0.0.32
+```
+
+项目自身的 `py3-none-any` wheel 可跨常见平台使用，但 wheelhouse 中的 `pycryptodome` 等依赖可能与操作系统、CPU 架构或 Python 版本有关，不能把同一个离线包无条件用于所有环境。
+
+### 3.4 发行包名与导入名
 
 | 用途 | 名称 |
 | --- | --- |
@@ -1329,6 +1404,44 @@ Windows 也可以一次执行完整发布前检查：
 ```powershell
 .\build-release.bat
 ```
+
+### 14.1 发布到 GitHub Releases
+
+发布前确认 `pyproject.toml`、`src/yikd_web_client/__init__.py`、Release 标签和文件名使用同一个版本号。例如当前版本使用标签 `v1.0.0.32`，并只上传本次构建生成的对应文件。
+
+建议为两个发行包生成 SHA256 摘要：
+
+```powershell
+$releaseFiles = @(
+  ".\dist\yikd_web_client-1.0.0.32-py3-none-any.whl"
+  ".\dist\yikd_web_client-1.0.0.32.tar.gz"
+)
+Get-FileHash -Algorithm SHA256 -Path $releaseFiles |
+  ForEach-Object {
+    "{0}  {1}" -f $_.Hash.ToLowerInvariant(), (Split-Path $_.Path -Leaf)
+  } |
+  Set-Content -Encoding ASCII .\dist\SHA256SUMS.txt
+```
+
+在 [GitHub Releases](https://github.com/1609676823/YiKdWebClient-Python/releases) 中选择 **Draft a new release**，创建或选择版本标签，然后在 **Assets** 区域上传：
+
+1. `dist/yikd_web_client-1.0.0.32-py3-none-any.whl`；
+2. `dist/yikd_web_client-1.0.0.32.tar.gz`；
+3. `dist/SHA256SUMS.txt`；
+4. 可选的、明确标注适用平台和 Python 版本的 wheelhouse 压缩包。
+
+也可以使用已经登录的 GitHub CLI 发布：
+
+```powershell
+gh release create v1.0.0.32 `
+  .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl `
+  .\dist\yikd_web_client-1.0.0.32.tar.gz `
+  .\dist\SHA256SUMS.txt `
+  --title "YiKdWebClient-Python v1.0.0.32" `
+  --generate-notes
+```
+
+不要上传本地 `appsettings.xml`、真实密码、应用密钥、Cookie、SessionId 或 `.cnf` 集成密钥。发布后建议在一台没有源码仓库的干净虚拟环境中，按照[第 3.3 节](#33-从-github-releases-下载并安装)分别验证 wheel 下载、安装、版本查询和配置文件加载。
 
 修改公开方法、参数顺序、认证报文或服务路径时，请同步更新测试和 [docs/API_MAPPING.md](docs/API_MAPPING.md)。更多约定见 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [CHANGELOG.md](CHANGELOG.md)。
 
