@@ -131,6 +131,8 @@ python -m pip install .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl
 
 ```python
 from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
+
+print("推荐包名导入成功：", AppSettingsModel, LoginType, YiK3CloudClient)
 ```
 
 迁移已有 C#/Java 示例时，也可以使用兼容命名空间：
@@ -138,6 +140,8 @@ from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
 ```python
 from YiKdWebClient import YiK3CloudClient
 from YiKdWebClient.Model import AppSettingsModel, LoginType
+
+print("兼容包名导入成功：", AppSettingsModel, LoginType, YiK3CloudClient)
 ```
 
 `YiKdWebClient.AuthService`、`CommonService`、`ComWebHelper`、`Model`、`SSO` 和 `ToolsHelper` 均提供对应重导出。兼容命名空间用于降低迁移成本，新项目仍推荐小写包名。
@@ -210,9 +214,27 @@ Copy-Item .\YiKdWebCfg\appsettings.example.xml `
 最直接的方式是把路径传给模型：
 
 ```python
-from yikd_web_client import AppSettingsModel
+from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
 
 settings = AppSettingsModel(r"D:\configs\kingdee\appsettings.xml")
+
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = settings
+    client.LoginType = LoginType.LoginBySignSHA256
+
+    result_json = client.View(
+        "SEC_User",
+        '{"IsUserModelInit":"true",'
+        '"Number":"Administrator",'
+        '"IsSortBySeq":"false"}',
+    )
+
+    print("配置路径：", r"D:\configs\kingdee\appsettings.xml")
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 也可以在创建客户端前修改兼容的全局默认路径：
@@ -220,10 +242,21 @@ settings = AppSettingsModel(r"D:\configs\kingdee\appsettings.xml")
 ```python
 from pathlib import Path
 
-from yikd_web_client import XmlConfigHelper, YiK3CloudClient
+from yikd_web_client import LoginType, XmlConfigHelper, YiK3CloudClient
 
 XmlConfigHelper.AppConfigPath = Path(r"D:\configs\kingdee\appsettings.xml")
-client = YiK3CloudClient()
+
+with YiK3CloudClient() as client:
+    client.LoginType = LoginType.LoginBySignSHA256
+    result_json = client.View(
+        "SEC_User",
+        '{"Number":"Administrator"}',
+    )
+
+    print("配置路径：", XmlConfigHelper.AppConfigPath)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 必须先设置 `XmlConfigHelper.AppConfigPath`，再创建会读取默认配置的 `YiK3CloudClient` 或 `AppSettingsModel`。
@@ -235,22 +268,48 @@ client = YiK3CloudClient()
 配置来自环境变量、数据库、配置中心，或同一进程需要连接多个账套时，可以直接设置模型属性：
 
 ```python
-import os
-
 from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
 
-settings = AppSettingsModel()
-settings.XKDApiAcctID = os.environ["YIKD_ACCT_ID"]
-settings.XKDApiUserName = os.environ["YIKD_USER_NAME"]
-settings.XKDApiAppID = os.environ["YIKD_APP_ID"]
-settings.XKDApiAppSec = os.environ["YIKD_APP_SECRET"]
-settings.XKDApiLCID = "2052"
-settings.XKDApiOrgNum = ""
-settings.XKDApiServerUrl = os.environ["YIKD_SERVER_URL"]
+# 这些值可以来自数据库、配置中心或环境变量；请替换为自己的环境信息。
+data_center_id = "替换为数据中心 ID"
+integration_user = "替换为集成用户"
+app_id = "替换为应用 ID"
+app_secret = "替换为应用密钥"
+locale_id = "2052"
+organization_number = ""
+server_url = "http://127.0.0.1/K3Cloud/"
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
+)
 
-client = YiK3CloudClient()
-client.AppSettingsModel = settings
-client.LoginType = LoginType.LoginBySignSHA256
+settings = AppSettingsModel()
+settings.XKDApiAcctID = data_center_id
+settings.XKDApiUserName = integration_user
+settings.XKDApiAppID = app_id
+settings.XKDApiAppSec = app_secret
+settings.XKDApiLCID = locale_id
+settings.XKDApiOrgNum = organization_number
+settings.XKDApiServerUrl = server_url
+
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = settings
+    client.LoginType = LoginType.LoginByAppSecret
+    result_json = client.View(form_id, json_data)
+
+    print("数据中心 ID：", data_center_id)
+    print("集成用户：", integration_user)
+    print("应用 ID：", app_id)
+    print("应用密钥：******")
+    print("服务地址：", server_url)
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 同一属性也有 `account_id`、`username`、`app_id`、`app_secret`、`language_id`、`organization_number` 和 `server_url` 等 Python 风格别名。
@@ -346,6 +405,8 @@ python .\examples\readme_runner.py sign-sha256
 
 ## 6. 登录验证方式与完整示例
 
+本 README 中的每个 Python 代码块都按独立脚本编写，包含自身所需的导入、变量、客户端初始化、资源释放和结果输出，不依赖前一个代码块。复制后只需替换目标环境配置、业务参数和文件路径。
+
 ### 6.1 认证模式总览
 
 Python 版与 C#/Java `LoginType` 保持一致，共有 7 个枚举值：6 种可选认证模式，以及 1 种仅为旧系统保留的兼容模式。
@@ -367,12 +428,27 @@ Python 版与 C#/Java `LoginType` 保持一致，共有 7 个枚举值：6 种�
 ```python
 from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
 
-client = YiK3CloudClient()
-client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
-client.LoginType = LoginType.LoginBySignSHA256
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
+)
 
-result_json = client.View("SEC_User", '{"Number":"Administrator"}')
-print(result_json)
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
+    client.LoginType = LoginType.LoginBySignSHA256
+    result_json = client.View(form_id, json_data)
+
+    print("表单 ID：", form_id)
+    print("业务 JSON 参数：", json_data)
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录请求：", client.ReturnLoginWebModel.RealRequestBody)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 签名使用账套 ID、集成用户、应用 ID、应用密钥、时间戳及可选组织编码。签名失败时，除核对配置外，还要确认客户端与服务器时间没有明显偏差。
@@ -381,10 +457,32 @@ print(result_json)
 
 ### 6.3 SHA1 签名信息认证（旧版本兼容）
 
-配置和调用方式与 SHA256 相同，只替换枚举：
+下面代码是独立示例，不依赖 6.2 中的变量：
 
 ```python
-client.LoginType = LoginType.LoginBySignSHA1
+from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
+
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
+)
+
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
+    client.LoginType = LoginType.LoginBySignSHA1
+    result_json = client.View(form_id, json_data)
+
+    print("表单 ID：", form_id)
+    print("业务 JSON 参数：", json_data)
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录请求：", client.ReturnLoginWebModel.RealRequestBody)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 除非目标补丁明确要求 SHA1，新接入优先使用 SHA256。
@@ -394,10 +492,32 @@ client.LoginType = LoginType.LoginBySignSHA1
 ### 6.4 第三方系统登录授权
 
 ```python
-client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
-client.LoginType = LoginType.LoginByAppSecret
+from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
 
-result_json = client.View("SEC_User", '{"Number":"Administrator"}')
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
+)
+
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
+    client.LoginType = LoginType.LoginByAppSecret
+    result_json = client.View(form_id, json_data)
+
+    settings = client.AppSettingsModel
+    print("数据中心 ID：", settings.XKDApiAcctID)
+    print("集成用户：", settings.XKDApiUserName)
+    print("应用 ID：", settings.XKDApiAppID)
+    print("应用密钥：******")
+    print("服务地址：", settings.XKDApiServerUrl)
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 `YiK3CloudClient` 的初始 `LoginType` 是 `LoginByAppSecret`，但示例和生产代码仍建议显式赋值，便于审查实际使用的认证模式。
@@ -411,11 +531,7 @@ result_json = client.View("SEC_User", '{"Number":"Administrator"}')
 ```python
 from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
 
-client = YiK3CloudClient()
-client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
-client.LoginType = LoginType.LoginByApiSignHeaders
-
-result_json = client.ExecuteBillQuery(
+query_json = (
     '{"FormId":"BD_MATERIAL",'
     '"FieldKeys":"FNumber,FName",'
     '"FilterString":"",'
@@ -425,9 +541,17 @@ result_json = client.ExecuteBillQuery(
     '"Limit":10}'
 )
 
-print(client.RequestHeadersString)
-print(client.ReturnOperationWebModel.RealRequestBody)
-print(result_json)
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
+    client.LoginType = LoginType.LoginByApiSignHeaders
+    result_json = client.ExecuteBillQuery(query_json)
+
+    print("业务 JSON 参数：", query_json)
+    print("签名请求头：", client.RequestHeadersString)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("ExecuteBillQuery 返回值：", result_json)
 ```
 
 生产使用前应确认目标金蝶版本、网关和授权页面仍支持对应算法及请求头格式。
@@ -517,6 +641,8 @@ Remove-Item Env:\YIKD_VALIDATE_PASSWORD
 `.cnf` 必须由目标金蝶环境生成，并与服务地址和数据中心匹配。文件方式：
 
 ```python
+from pathlib import Path
+
 from yikd_web_client import (
     BySimplePassportType,
     LoginBySimplePassportModel,
@@ -524,28 +650,80 @@ from yikd_web_client import (
     YiK3CloudClient,
 )
 
-client = YiK3CloudClient()
-client.LoginType = LoginType.LoginBySimplePassport
-client.LoginBySimplePassportModel = LoginBySimplePassportModel(
-    "https://example.test/K3Cloud/",
-    CnfFilePath=r"D:\configs\kingdee\API测试.cnf",
-    Lcid=2052,
-    bySimplePassportType=BySimplePassportType.CnfFile,
+server_url = "http://127.0.0.1/K3Cloud/"
+cnf_path = Path(r"D:\configs\kingdee\API测试.cnf")
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
 )
 
-result_json = client.View("SEC_User", '{"Number":"Administrator"}')
-print(result_json)
+if not cnf_path.is_file():
+    raise FileNotFoundError(f"找不到集成密钥文件，请修改 cnf_path：{cnf_path}")
+
+with YiK3CloudClient() as client:
+    client.LoginType = LoginType.LoginBySimplePassport
+    client.LoginBySimplePassportModel = LoginBySimplePassportModel(
+        server_url,
+        CnfFilePath=str(cnf_path),
+        Lcid=2052,
+        bySimplePassportType=BySimplePassportType.CnfFile,
+    )
+
+    result_json = client.View(form_id, json_data)
+
+    print("服务地址：", server_url)
+    print("集成密钥文件：", cnf_path)
+    print("表单 ID：", form_id)
+    print("业务 JSON 参数：", json_data)
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录请求：", client.ReturnLoginWebModel.RealRequestBody)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 如果集成密钥已从安全存储读取为 Base64，不必落地 `.cnf` 文件：
 
 ```python
-client.LoginBySimplePassportModel = LoginBySimplePassportModel(
-    "https://example.test/K3Cloud/",
-    SimplePassportForBase64=base64_passport_from_secure_store,
-    Lcid=2052,
-    bySimplePassportType=BySimplePassportType.ForBase64,
+from yikd_web_client import (
+    BySimplePassportType,
+    LoginBySimplePassportModel,
+    LoginType,
+    YiK3CloudClient,
 )
+
+server_url = "http://127.0.0.1/K3Cloud/"
+base64_passport = "替换为从安全存储读取的 Base64 集成密钥"
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
+)
+
+with YiK3CloudClient() as client:
+    client.LoginType = LoginType.LoginBySimplePassport
+    client.LoginBySimplePassportModel = LoginBySimplePassportModel(
+        server_url,
+        SimplePassportForBase64=base64_passport,
+        Lcid=2052,
+        bySimplePassportType=BySimplePassportType.ForBase64,
+    )
+
+    result_json = client.View(form_id, json_data)
+
+    print("服务地址：", server_url)
+    print("集成密钥来源：Base64（内容不输出）")
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 文件和 Base64 是同一个 `LoginBySimplePassport` 的两种密钥来源，不额外计为两个 `LoginType`。
@@ -556,10 +734,53 @@ client.LoginBySimplePassportModel = LoginBySimplePassportModel(
 
 `ValidateUserEnDeCode` 会对用户名和密码执行旧式 DES 兼容编码，并调用对应旧服务。它仅用于兼容历史场景，新项目不要选择此模式。
 
-如维护旧系统，可复用 6.6 的 `ValidateLoginSettingsModel`，仅把枚举改为：
+如维护旧系统，仍然使用 `ValidateLoginSettingsModel`，但认证枚举改为 `ValidateUserEnDeCode`。下面是可独立复制的完整兼容示例：
 
 ```python
-client.LoginType = LoginType.ValidateUserEnDeCode
+from yikd_web_client import (
+    LoginType,
+    ValidateLoginSettingsModel,
+    YiK3CloudClient,
+)
+
+server_url = "http://127.0.0.1/K3Cloud/"
+data_center_id = "6979b9812f3f89"
+user_name = "demo"
+password = "123456"  # 示例密码，请替换为目标环境用户的实际密码
+locale_id = 2052
+form_id = "SEC_User"
+json_data = (
+    '{"IsUserModelInit":"true",'
+    '"Number":"Administrator",'
+    '"IsSortBySeq":"false"}'
+)
+
+login = ValidateLoginSettingsModel(
+    server_url,
+    DbId=data_center_id,
+    UserName=user_name,
+    Password=password,
+    lcid=locale_id,
+)
+
+with YiK3CloudClient() as client:
+    client.LoginType = LoginType.ValidateUserEnDeCode
+    client.validateLoginSettingsModel = login
+    result_json = client.View(form_id, json_data)
+
+    masked_login_body = client.ReturnLoginWebModel.RealRequestBody.replace(
+        password,
+        "******",
+    )
+    print("兼容模式：", client.LoginType)
+    print("用户名：", user_name)
+    print("密码：******")
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录请求（已脱敏）：", masked_login_body)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 返回值：", result_json)
 ```
 
 ### 6.9 查看真实请求和响应
@@ -583,6 +804,10 @@ client.LoginType = LoginType.ValidateUserEnDeCode
 大多数动态表单方法接收 JSON **字符串**，内容与金蝶官方业务参数要求一致，客户端负责包装外层 HTTP 报文：
 
 ```python
+import json
+
+from yikd_web_client import AppSettingsModel, LoginType, YiK3CloudClient
+
 form_id = "SEC_User"
 json_data = (
     '{"IsUserModelInit":"true",'
@@ -590,16 +815,22 @@ json_data = (
     '"IsSortBySeq":"false"}'
 )
 
-result_json = client.View(form_id, json_data)
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
+    client.LoginType = LoginType.LoginBySignSHA256
+
+    result_json = client.View(form_id, json_data)
+    result = json.loads(result_json)
+
+    print("表单 ID：", form_id)
+    print("业务 JSON 参数：", json_data)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("View 原始返回值：", result_json)
+    print("解析后的 Python 对象：", result)
 ```
 
-方法返回值也是原始 JSON 字符串。需要读取字段时由业务代码显式解析：
-
-```python
-import json
-
-result = json.loads(result_json)
-```
+方法返回值是原始 JSON 字符串；需要读取字段时，由业务代码像上例一样显式调用 `json.loads`。
 
 ### 7.2 常用接口
 
@@ -615,26 +846,11 @@ result = json.loads(result_json)
 | `CustomBusinessService`、`CustomBusinessServiceByParameters` | 自定义 WebAPI |
 | `GetDataCenterList` | 获取数据中心列表 |
 
-完整方法、参数顺序、Python 别名和服务路径见 [API 对照文档](docs/API_MAPPING.md)。`ExecuteOperation` 的参数顺序与当前 C#/Java 基准一致：
-
-```python
-client.ExecuteOperation(form_id, operation_number, json_data)
-```
+完整方法、参数顺序、Python 别名和服务路径见 [API 对照文档](docs/API_MAPPING.md)。`ExecuteOperation` 的参数顺序与当前 C#/Java 基准一致：`client.ExecuteOperation(form_id, operation_number, json_data)`。
 
 ### 7.3 自动登录、自动登出与会话复用
 
-大部分业务方法的最后两个参数是：
-
-```python
-client.View(form_id, json_data)                    # 自动登录、自动登出
-client.View(form_id, json_data, AutoLogin=False)   # 不再登录，调用后仍自动登出
-client.View(
-    form_id,
-    json_data,
-    AutoLogin=False,
-    AutoLogout=False,
-)                                                   # 复用现有会话
-```
+大部分业务方法最后两个参数都是 `AutoLogin` 和 `AutoLogout`：省略时自动登录并自动登出；只传 `AutoLogin=False` 时不再登录但调用后仍登出；同时传 `AutoLogin=False, AutoLogout=False` 时复用现有会话。
 
 连续调用多个接口时，可以复用同一 Cookie：
 
@@ -699,9 +915,19 @@ print("WPF：", urls.wpfUrl)
 构造并执行 SSO V4 登出：
 
 ```python
+from yikd_web_client import AppSettingsModel, SSOHelper
+
+settings = AppSettingsModel("YiKdWebCfg/appsettings.xml")
+helper = SSOHelper()
+helper.appSettingsModel = settings
+helper.Url = settings.XKDApiServerUrl
+
 logout_request = helper.GetSSOLogoutap0StrV4(settings.XKDApiUserName)
 logout_response = helper.SSOExcuteLogout(logout_request)
-print(logout_response)
+
+print("登出用户名：", settings.XKDApiUserName)
+print("登出地址：", logout_request.RequestLogoutUrl)
+print("登出响应：", logout_response)
 ```
 
 V3、V2/V1 分别使用 `GetSSOLogoutap0StrV3` 和 `GetSSOLogoutap0StrV2V1`。SSO URL 和签名参数属于敏感登录材料，不应写入公开日志。
@@ -715,7 +941,21 @@ V3、V2/V1 分别使用 `GetSSOLogoutap0StrV3` 和 `GetSSOLogoutap0StrV2V1`。SS
 目标金蝶环境必须先部署服务端自定义 WebAPI。Python 仓库只移植客户端；C# 仓库中的 `GlobalServiceCustom.WebApi` 才是需要部署到金蝶/.NET 服务端的示例项目。
 
 ```python
-from yikd_web_client import CustomServicesStubpath
+import json
+
+from yikd_web_client import (
+    AppSettingsModel,
+    CustomServicesStubpath,
+    LoginType,
+    YiK3CloudClient,
+)
+
+sql = "SELECT TOP 10 * FROM T_BD_MATERIAL_L"
+parameters_json = json.dumps(
+    {"parameters": [sql]},
+    ensure_ascii=False,
+    separators=(",", ":"),
+)
 
 service = CustomServicesStubpath(
     ProjetNamespace="GlobalServiceCustom.WebApi",
@@ -723,20 +963,29 @@ service = CustomServicesStubpath(
     ProjetClassMethod="CommonRunnerService",
 )
 
-# 使用标准 YiKdWebClient 外层参数包装。
-result_json = client.CustomBusinessService(
-    '{"value":1}',
-    service,
-)
+with YiK3CloudClient() as client:
+    client.AppSettingsModel = AppSettingsModel("YiKdWebCfg/appsettings.xml")
+    client.LoginType = LoginType.LoginByAppSecret
 
-# 原样发送已经准备好的完整参数 JSON。
-raw_result_json = client.CustomBusinessServiceByParameters(
-    '["one",2]',
-    service,
-)
+    result_json = client.CustomBusinessServiceByParameters(
+        parameters_json,
+        service,
+    )
+
+    print("服务端命名空间：", service.ProjetNamespace)
+    print("服务端类名：", service.ProjetClassName)
+    print("服务端方法名：", service.ProjetClassMethod)
+    print("SQL 参数：", sql)
+    print("接口参数 JSON：", parameters_json)
+    print("登录地址：", client.ReturnLoginWebModel.RequestUrl)
+    print("登录响应：", client.ReturnLoginWebModel.RealResponseBody)
+    print("业务地址：", client.ReturnOperationWebModel.RequestUrl)
+    print("业务请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("业务响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("自定义接口返回值：", result_json)
 ```
 
-也可以直接传服务路径字符串；缺少 `.common.kdsvc` 后缀时客户端会自动补齐。命名空间、类名、公开方法名和程序集命名必须与服务器端部署内容完全一致。
+需要让客户端包装标准外层参数时可改用 `CustomBusinessService`；也可以直接传服务路径字符串，缺少 `.common.kdsvc` 后缀时客户端会自动补齐。命名空间、类名、公开方法名和程序集命名必须与服务器端部署内容完全一致。
 
 ![自定义 WebAPI 的 Python 实际请求与回环响应](docs/screenshots/09-custom-webapi.png)
 
@@ -749,17 +998,35 @@ raw_result_json = client.CustomBusinessServiceByParameters(
 ### 10.1 文件路径上传并获取进度
 
 ```python
+from pathlib import Path
+
 from yikd_web_client import (
     AttachmentHelper,
+    LoginBySimplePassportModel,
+    LoginType,
     UploadModel,
     UploadModelData,
+    YiK3CloudClient,
 )
+
+server_url = "http://127.0.0.1/K3Cloud/"
+cnf_path = Path(r"D:\configs\kingdee\API测试.cnf")
+file_path = Path(r"D:\files\upload-demo.txt")
+form_id = "SAL_SaleOrder"
+inter_id = "100020"
+bill_number = "XSDD000019"
+chunk_size = 2 * 1024 * 1024
+
+if not cnf_path.is_file():
+    raise FileNotFoundError(f"找不到集成密钥文件，请修改 cnf_path：{cnf_path}")
+if not file_path.is_file():
+    raise FileNotFoundError(f"找不到待上传文件，请修改 file_path：{file_path}")
 
 upload = UploadModel(
     data=UploadModelData(
-        FormId="SAL_SaleOrder",
-        InterId="100020",
-        BillNO="XSDD000019",
+        FormId=form_id,
+        InterId=inter_id,
+        BillNO=bill_number,
         Entrykey="",
         EntryinterId="-1",
     )
@@ -773,16 +1040,31 @@ def report_progress(chunk, current_client):
     )
 
 
-result_json = AttachmentHelper.AttachmentUploadByFilePath(
-    r"D:\files\upload-demo.txt",
-    client,
-    upload,
-    chunkSize=2 * 1024 * 1024,
-    progressaction=report_progress,
-)
+with YiK3CloudClient() as client:
+    client.LoginType = LoginType.LoginBySimplePassport
+    client.LoginBySimplePassportModel = LoginBySimplePassportModel(
+        server_url,
+        CnfFilePath=str(cnf_path),
+        Lcid=2052,
+    )
 
-print(result_json)
-print("服务端文件 ID：", upload.data.FileId)
+    result_json = AttachmentHelper.AttachmentUploadByFilePath(
+        str(file_path),
+        client,
+        upload,
+        chunkSize=chunk_size,
+        progressaction=report_progress,
+    )
+
+    print("待上传文件：", file_path)
+    print("目标表单：", form_id)
+    print("单据内码：", inter_id)
+    print("单据编号：", bill_number)
+    print("分块大小：", chunk_size)
+    print("最后一块请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("最后一块响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("服务端文件 ID：", upload.data.FileId)
+    print("上传返回值：", result_json)
 ```
 
 不需要进度时可省略 `progressaction`。每个成功分块返回的 `FileId` 会写回 `upload.data.FileId`，供后续分块继续使用。
@@ -796,14 +1078,76 @@ print("服务端文件 ID：", upload.data.FileId)
 已经持有 Base64 文件内容时，不必先还原成临时文件：
 
 ```python
-result_json = AttachmentHelper.AttachmentUploadByBase64(
-    base64_data,
-    "upload-demo.txt",
-    client,
-    upload,
-    chunkSize=2 * 1024 * 1024,
-    progressaction=report_progress,
+import base64
+from pathlib import Path
+
+from yikd_web_client import (
+    AttachmentHelper,
+    LoginBySimplePassportModel,
+    LoginType,
+    UploadModel,
+    UploadModelData,
+    YiK3CloudClient,
 )
+
+server_url = "http://127.0.0.1/K3Cloud/"
+cnf_path = Path(r"D:\configs\kingdee\API测试.cnf")
+file_path = Path(r"D:\files\upload-demo.txt")
+form_id = "SAL_SaleOrder"
+inter_id = "100020"
+bill_number = "XSDD000019"
+chunk_size = 2 * 1024 * 1024
+
+if not cnf_path.is_file():
+    raise FileNotFoundError(f"找不到集成密钥文件，请修改 cnf_path：{cnf_path}")
+if not file_path.is_file():
+    raise FileNotFoundError(f"找不到待上传文件，请修改 file_path：{file_path}")
+
+base64_data = base64.b64encode(file_path.read_bytes()).decode("ascii")
+upload = UploadModel(
+    data=UploadModelData(
+        FormId=form_id,
+        InterId=inter_id,
+        BillNO=bill_number,
+        Entrykey="",
+        EntryinterId="-1",
+    )
+)
+
+
+def report_progress(chunk, current_client):
+    print(
+        f"已完成分块 {chunk.Chunkindex + 1}，"
+        f"文件 {chunk.Filename}，最后一块：{chunk.IsLast}"
+    )
+
+
+with YiK3CloudClient() as client:
+    client.LoginType = LoginType.LoginBySimplePassport
+    client.LoginBySimplePassportModel = LoginBySimplePassportModel(
+        server_url,
+        CnfFilePath=str(cnf_path),
+        Lcid=2052,
+    )
+
+    result_json = AttachmentHelper.AttachmentUploadByBase64(
+        base64_data,
+        file_path.name,
+        client,
+        upload,
+        chunkSize=chunk_size,
+        progressaction=report_progress,
+    )
+
+    print("源文件：", file_path)
+    print("Base64 字符数：", len(base64_data))
+    print("目标表单：", form_id)
+    print("单据内码：", inter_id)
+    print("单据编号：", bill_number)
+    print("最后一块请求：", client.ReturnOperationWebModel.RealRequestBody)
+    print("最后一块响应：", client.ReturnOperationWebModel.RealResponseBody)
+    print("服务端文件 ID：", upload.data.FileId)
+    print("上传返回值：", result_json)
 ```
 
 默认分块大小是 1 MiB。实际可用大小还应服从目标金蝶版本、反向代理和附件存储限制。
@@ -827,9 +1171,15 @@ result_json = AttachmentHelper.AttachmentUploadByBase64(
 ```python
 from yikd_web_client import WebHelperServices
 
+url = "http://127.0.0.1:8000/api/example"
+json_text = '{"parameters":[]}'
+
 helper = WebHelperServices()
 helper.Timeout = 30
 response_text = helper.SendHttpRequest(url, json_text)
+print("请求地址：", url)
+print("请求 JSON：", json_text)
+print("响应文本：", response_text)
 ```
 
 异步调用：
@@ -841,10 +1191,15 @@ from yikd_web_client import WebHelperServices
 
 
 async def main():
+    url = "http://127.0.0.1:8000/api/example"
+    json_text = '{"parameters":[]}'
+
     helper = WebHelperServices()
     helper.Timeout = 30
     response_text = await helper.SendHttpRequestAsync(url, json_text)
-    print(response_text)
+    print("请求地址：", url)
+    print("请求 JSON：", json_text)
+    print("响应文本：", response_text)
 
 
 asyncio.run(main())
@@ -867,17 +1222,7 @@ asyncio.run(main())
 | 运行时 | .NET 多目标框架 | Java 8 字节码，可运行于较新 JDK | Python 3.9～3.13 |
 | 异步边界 | 依具体 HTTP 工具 | 公开业务客户端为同步调用 | 公开业务客户端为同步调用，底层 HTTP 工具有异步包装 |
 
-三个版本使用相同的 `appsettings.xml` 键名、认证枚举含义、动态表单方法名、参数顺序和服务路径。Python 迁移时可以先保留原方法名：
-
-```python
-result_json = client.View("BD_MATERIAL", '{"Number":"PRE001"}')
-```
-
-再按项目风格逐步改成等价别名：
-
-```python
-result_json = client.view("BD_MATERIAL", '{"Number":"PRE001"}')
-```
+三个版本使用相同的 `appsettings.xml` 键名、认证枚举含义、动态表单方法名、参数顺序和服务路径。Python 迁移时可以先保留 `client.View("BD_MATERIAL", json_data)`，再按项目风格逐步改成等价的 `client.view("BD_MATERIAL", json_data)`。
 
 完整映射和已验证边界见 [docs/API_MAPPING.md](docs/API_MAPPING.md)。目标金蝶版本、补丁、许可、公私有云网关及自定义服务 DLL 仍需在使用者自己的环境中做最终集成验证。
 
