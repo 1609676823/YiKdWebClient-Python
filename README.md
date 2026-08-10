@@ -116,7 +116,7 @@ Windows 可以直接运行仓库脚本。脚本会创建或复用 `.venv`，安�
 | `yikd_web_client-1.0.0.32-py3-none-any.whl` | wheel 二进制发行包 | 推荐普通用户安装；无需先构建本项目 |
 | `yikd_web_client-1.0.0.32.tar.gz` | Python 源码发行包（sdist） | 用于源码审查、重新构建或 wheel 不适用时安装 |
 
-这两个文件都是标准 Python 发行包，可以直接复制给其他用户，也可以作为 GitHub Release Assets 发布。普通用户优先选择 wheel：
+这两个文件都是标准 Python 发行包，可以直接复制给其他用户，也可以作为仓库发行资产发布。普通用户优先选择 wheel：
 
 ```powershell
 python -m pip install .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl
@@ -126,9 +126,9 @@ python -m pip install .\dist\yikd_web_client-1.0.0.32-py3-none-any.whl
 
 ![Python 可编辑安装与发行包构建结果](docs/screenshots/00-pip-install.png)
 
-### 3.3 从 GitHub Releases 下载并安装
+### 3.3 从项目发行页下载并安装
 
-项目发布页：[YiKdWebClient-Python Releases](https://github.com/1609676823/YiKdWebClient-Python/releases)。发布版本后，普通用户展开对应版本的 **Assets**，下载以下文件之一：
+发布版本后，普通用户进入当前代码托管平台中本项目的 **Releases／发行版** 页面，展开对应版本的 **Assets／附件**，下载以下文件之一：
 
 - 推荐：`yikd_web_client-1.0.0.32-py3-none-any.whl`；
 - 备选：`yikd_web_client-1.0.0.32.tar.gz`；
@@ -163,11 +163,10 @@ python -c "import yikd_web_client; print(yikd_web_client.__version__)"
 python -m pip install .\yikd_web_client-1.0.0.32.tar.gz
 ```
 
-发布 `v1.0.0.32` 且 Asset 名称与上面一致后，也可以直接通过 Release Asset URL 安装：
+如果当前代码托管平台提供发行资产直链，也可以复制 wheel 的实际下载地址交给 `pip` 安装：
 
 ```powershell
-python -m pip install `
-  "https://github.com/1609676823/YiKdWebClient-Python/releases/download/v1.0.0.32/yikd_web_client-1.0.0.32-py3-none-any.whl"
+python -m pip install "<wheel 发行资产的实际下载地址>"
 ```
 
 wheel 和 sdist 都只包含客户端，不包含任何真实金蝶凭据。安装完成后，仍需按照[第 4 节](#4-配置-appsettingsxml)在业务程序的工作目录创建 `YiKdWebCfg/appsettings.xml`；旧版用户名密码、`.cnf` 集成密钥等敏感内容也必须由使用者在本地配置。
@@ -1405,7 +1404,7 @@ Windows 也可以一次执行完整发布前检查：
 .\build-release.bat
 ```
 
-### 14.1 发布到 GitHub Releases
+### 14.1 发布到两个仓库的发行页
 
 发布前确认 `pyproject.toml`、`src/yikd_web_client/__init__.py`、Release 标签和文件名使用同一个版本号。例如当前版本使用标签 `v1.0.0.32`，并只上传本次构建生成的对应文件。
 
@@ -1423,14 +1422,14 @@ Get-FileHash -Algorithm SHA256 -Path $releaseFiles |
   Set-Content -Encoding ASCII .\dist\SHA256SUMS.txt
 ```
 
-在 [GitHub Releases](https://github.com/1609676823/YiKdWebClient-Python/releases) 中选择 **Draft a new release**，创建或选择版本标签，然后在 **Assets** 区域上传：
+分别进入 GitHub 仓库的 **Releases** 页面和 Gitee 仓库的 **发行版** 页面，使用相同的版本标签、标题和发布说明创建发行版，然后在 **Assets／附件** 区域上传同一组文件：
 
 1. `dist/yikd_web_client-1.0.0.32-py3-none-any.whl`；
 2. `dist/yikd_web_client-1.0.0.32.tar.gz`；
 3. `dist/SHA256SUMS.txt`；
 4. 可选的、明确标注适用平台和 Python 版本的 wheelhouse 压缩包。
 
-也可以使用已经登录的 GitHub CLI 发布：
+GitHub 仓库一侧如果已经登录 GitHub CLI，也可以使用：
 
 ```powershell
 gh release create v1.0.0.32 `
@@ -1441,7 +1440,9 @@ gh release create v1.0.0.32 `
   --generate-notes
 ```
 
-不要上传本地 `appsettings.xml`、真实密码、应用密钥、Cookie、SessionId 或 `.cnf` 集成密钥。发布后建议在一台没有源码仓库的干净虚拟环境中，按照[第 3.3 节](#33-从-github-releases-下载并安装)分别验证 wheel 下载、安装、版本查询和配置文件加载。
+Gitee 仓库仍需在对应发行版页面上传同一组文件，确保两个仓库的版本标签、标题、发布说明和发行资产保持一致。
+
+不要上传本地 `appsettings.xml`、真实密码、应用密钥、Cookie、SessionId 或 `.cnf` 集成密钥。发布后建议分别从两个仓库下载发行资产，并在没有源码仓库的干净虚拟环境中，按照[第 3.3 节](#33-从项目发行页下载并安装)验证 wheel 下载、安装、版本查询和配置文件加载。
 
 修改公开方法、参数顺序、认证报文或服务路径时，请同步更新测试和 [docs/API_MAPPING.md](docs/API_MAPPING.md)。更多约定见 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [CHANGELOG.md](CHANGELOG.md)。
 
